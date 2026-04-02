@@ -17,5 +17,24 @@ curl -k -s -H "X-PAN-KEY: $API_KEY" "https://$PAN_IP/api/?type=op&cmd=%3Cshow%3E
     count=$(echo "$result" | grep -oE 'ethernet[^"]+|<state>up</state>' | grep -B 1 "<state>up</state>" | grep -c "ethernet")
     
     echo "$count"
+    
+    # Parse the XML to output the speed of each active interface
+    echo "$result" | awk '
+        /<entry.*name="ethernet/ { 
+            intf=$0; sub(/.*name="/, "", intf); sub(/".*/, "", intf)
+            state=""; speed=""
+        }
+        /<state>/ {
+            state=$0; sub(/.*<state>/, "", state); sub(/<\/state>.*/, "", state)
+        }
+        /<speed>/ {
+            speed=$0; sub(/.*<speed>/, "", speed); sub(/<\/speed>.*/, "", speed)
+        }
+        /<\/entry>/ { 
+            if (state == "up" && intf != "") { 
+                print "  -> " intf " | Speed: " speed
+            } 
+            intf=""
+        }
+    '
 done
-
